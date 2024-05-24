@@ -54,7 +54,7 @@ export default {
     return {
       message: '',
       chatMessages: [],
-      apiUrl: 'https://vertex-ai-teste-c2vxsiybmq-uc.a.run.app/api/generate',
+      apiUrl: 'https://vertex-ai-teste-back-tnbkeowjkq-uc.a.run.app/api/generate',
       selectedFile: null
     };
   },
