@@ -20,17 +20,27 @@
               </div>
             </li>
           </ul>
+          <div v-if="isLoading" class="mensagens">
+            <div class="msg-ivone">
+              <div class="contato">
+                <img src="@/assets/images/ivone.svg" width="40px" height="auto">
+                <strong>Ivone:</strong>
+              </div>
+              <div>A IA está pensando...</div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="chat-inputs">
         <form @submit.prevent="sendMessage" class="chat-inputs">
-          <input type="text" v-model="message" placeholder="Digite sua mensagem..." @keyup.enter="sendMessage" />
-          <input type="file" @change="handleFileUpload" ref="fileInput">
-          <button type="submit">Enviar</button>
+          <input type="text" v-model="message" placeholder="Digite sua mensagem..." @keyup.enter="sendMessage"
+            :disabled="waitingResponse" />
+          <input type="file" @change="handleFileUpload" ref="fileInput" :disabled="waitingResponse">
+          <button type="submit" :disabled="waitingResponse">Enviar</button>
         </form>
       </div>
       <div class="chat-inputs-2">
-        <button @click="clearHistory" class="clearHistory">Limpar Histórico</button>
+        <button @click="clearHistory" class="clearHistory" :disabled="waitingResponse">Limpar Histórico</button>
       </div>
     </div>
   </div>
@@ -55,7 +65,9 @@ export default {
       message: '',
       chatMessages: [],
       apiUrl: 'https://vertex-ai-teste-back-tnbkeowjkq-uc.a.run.app/api/generate',
-      selectedFile: null
+      selectedFile: null,
+      isLoading: false,
+      waitingResponse: false
     };
   },
   methods: {
@@ -65,11 +77,12 @@ export default {
     sendMessage() {
       if (this.message || this.selectedFile) {
         let messageData = { message: this.message };
+        this.waitingResponse = true;
         if (this.selectedFile) {
           this.getBase64(this.selectedFile)
-          .then(base64 => {
+            .then(base64 => {
               messageData.file = {
-                mimeType: this.selectedFile.type, 
+                mimeType: this.selectedFile.type,
                 data: base64
               };
               this.sendMessageToNode(messageData);
@@ -78,41 +91,50 @@ export default {
               console.error("Erro ao converter arquivo para Base64:", error);
             });
         } else {
+          this.chatMessages.push(this.message);
           this.sendMessageToNode(messageData);
         }
       }
     },
     sendMessageToNode(messageData) {
+      this.isLoading = true; //Mostra a mensagem de aguarde a IA responder.
+      this.waitingResponse = true; // Desabilita envio enquanto espera
+
+      const delay = 5000; //Delay de mensagens (5 Segundos).
       // Envie a mensagem para o Node.js usando Axios
-      axios.post(this.apiUrl, messageData)
-        .then(response => {
-          // Receba a resposta da IA
-          const aiResponse = response.data.response;
-          const formattedResponse = aiResponse.replace(/<[^>]+>/g, '');
+      setTimeout(() => {
+        axios.post(this.apiUrl, messageData)
+          .then(response => {
+            // Receba a resposta da IA
+            const aiResponse = response.data.response;
+            const formattedResponse = aiResponse.replace(/<[^>]+>/g, '');
 
-          // Adicione a mensagem do usuário e a resposta da IA ao chat
-          this.chatMessages.push(this.message);
-          this.chatMessages.push(formattedResponse);
+            // Adicione a mensagem do usuário e a resposta da IA ao chat
+            //this.chatMessages.push(this.message);
+            this.chatMessages.push(formattedResponse);
 
-          //Salvando no localStorage
-          localStorage.setItem('chatMessages', JSON.stringify(this.chatMessages));
+            //Salvando no localStorage
+            localStorage.setItem('chatMessages', JSON.stringify(this.chatMessages));
 
-          // Limpe o campo de entrada e atualize a interface
-          this.message = '';
-          this.chatOutput.scrollTop = this.chatOutput.scrollHeight;
-        })
-        .catch(error => {
-          console.error('Erro ao enviar mensagem:', error);
-        })
-        .finally(() => {
-          this.message = '';
-          this.selectedFile = null;
-          this.$refs.fileInput.value = null; 
-        })
+            // Limpe o campo de entrada e atualize a interface
+            this.message = '';
+            this.chatOutput.scrollTop = this.chatOutput.scrollHeight;
+          })
+          .catch(error => {
+            console.error('Erro ao enviar mensagem:', error);
+          })
+          .finally(() => {
+            this.message = '';
+            this.selectedFile = null;
+            this.$refs.fileInput.value = null;
+            this.isLoading = false; // Esconde a mensagem de espera
+            this.waitingResponse = false;
+          })
 
-      // Atualize a rolagem da área de chat
-      this.chatOutput.scrollTop = this.chatOutput.scrollHeight;
+        // Atualize a rolagem da área de chat
+        this.chatOutput.scrollTop = this.chatOutput.scrollHeight;
 
+      }, delay);
     },
     getBase64(file) {
       return new Promise((resolve, reject) => {
@@ -139,6 +161,15 @@ export default {
 </script>
 
 <style>
+:root {
+  --standard-color-black: #212236;
+  --standard-color-green: #69f9de;
+  --standard-color-green-strong: #16f9b9;
+  --standard-color-blue: #2922f2;
+  --standard-color-purple: #321daa;
+  --standard-color-purple-strong: #251d59;
+}
+
 body {
   background: #e0efff;
   font-family: 'Nunito', sans-serif !important;
